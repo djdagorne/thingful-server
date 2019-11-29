@@ -27,57 +27,6 @@ describe('Things Endpoints', function() {
 
   afterEach('cleanup', () => helpers.cleanTables(db))
 
-  describe(`Protected Endpoints`,()=>{
-    beforeEach(`insert things`,()=>
-      helpers.seedThingsTables(
-        db,
-        testUsers,
-        testThings,
-        testReviews
-      )
-    )
-    const protectedEndpoints = [
-      {
-        name: 'GET /api/things/:thing_id',
-        path: '/api/things/1'
-      },
-      {
-        name: 'GET /api/things/:thing_id/reviews',
-        path: '/api/things/1/reviews'
-      },
-    ]
-    protectedEndpoints.forEach(endpoint => {
-      describe(endpoint.name,()=>{
-        it(`responds 401 'Missing basic token' when no token`,()=>{
-          return supertest(app)
-            .get(endpoint.path)
-            .expect(401, {error: 'Missing basic token'})
-        })
-        it(`responds 401 'Unauthorized request' when no credentials`,()=>{
-          const userNoCreds = { user_name: '', password: ''}
-          return supertest(app)
-            .get(endpoint.path)
-            .set('Authorization', helpers.makeAuthHeader(userNoCreds))
-            .expect(401, {error: `Unauthorized request`})
-        })
-        it(`responds 401 'Unauthorized request' when invalid user`,()=>{
-          const invalidCreds = { user_name: 'no sir', password: ''}
-          return supertest(app)
-            .get(endpoint.path)
-            .set('Authorization', helpers.makeAuthHeader(invalidCreds))
-            .expect(401, {error: `Unauthorized request`})
-        })
-        it(`responds 401 'Unauthorized request' when invalid password`,()=>{
-          const invalidCreds = { user_name: testUsers[0], password: 'not likely'}
-          return supertest(app)
-            .get(endpoint.path)
-            .set('Authorization', helpers.makeAuthHeader(invalidCreds))
-            .expect(401, {error: `Unauthorized request`})
-        })
-      })
-    })
-  })
-
   describe(`GET /api/things`, () => {
     context(`Given no things`, () => {
       it(`responds with 200 and an empty list`, () => {
@@ -141,7 +90,7 @@ describe('Things Endpoints', function() {
   describe(`GET /api/things/:thing_id`, () => {
     context(`Given no things`, () => {
       beforeEach(()=>
-        db.into('thingful_users').insert(testUsers)
+        helpers.seedUsers(db, testUsers)
       )
       it(`responds with 404`, () => {
         const thingId = 123456
@@ -208,10 +157,7 @@ describe('Things Endpoints', function() {
   describe(`GET /api/things/:thing_id/reviews`, () => {
     context(`Given no things`, () => {
       beforeEach(()=>
-        helpers.seedThingsTables(
-          db,
-          testUsers
-        )
+        helpers.seedUsers(db, testUsers)
       )
       it(`responds with 404`, () => {
         const thingId = 123456

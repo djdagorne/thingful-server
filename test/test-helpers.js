@@ -1,3 +1,6 @@
+const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
+
 function makeUsersArray() {
   return [
     {
@@ -5,7 +8,7 @@ function makeUsersArray() {
       user_name: 'test-user-1',
       full_name: 'Test user 1',
       nickname: 'TU1',
-      password: 'password',
+      password: 'AA11aa!!',
       date_created: '2029-01-22T16:28:32.615Z',
     },
     {
@@ -13,7 +16,7 @@ function makeUsersArray() {
       user_name: 'test-user-2',
       full_name: 'Test user 2',
       nickname: 'TU2',
-      password: 'password',
+      password: 'AA11aa!!',
       date_created: '2029-01-22T16:28:32.615Z',
     },
     {
@@ -21,7 +24,7 @@ function makeUsersArray() {
       user_name: 'test-user-3',
       full_name: 'Test user 3',
       nickname: 'TU3',
-      password: 'password',
+      password: 'AA11aa!!',
       date_created: '2029-01-22T16:28:32.615Z',
     },
     {
@@ -29,7 +32,7 @@ function makeUsersArray() {
       user_name: 'test-user-4',
       full_name: 'Test user 4',
       nickname: 'TU4',
-      password: 'password',
+      password: 'AA11aa!!',
       date_created: '2029-01-22T16:28:32.615Z',
     },
   ]
@@ -230,33 +233,74 @@ function cleanTables(db) {
   )
 }
 
-function seedThingsTables(db, users, things, reviews=[]) {
-  return db
-    .into('thingful_users')
-    .insert(users)
+// function cleanTables(db) {
+//   return db.transaction(trx =>
+//     trx.raw(
+//       `TRUNCATE
+//         thingful_things,
+//         thingful_users,
+//         thingful_reviews
+//       `
+//     )
+//     .then(() =>
+//       Promise.all([
+//         trx.raw(`ALTER SEQUENCE thingful_things_id_seq minvalue 0 START WITH 1`),
+//         trx.raw(`ALTER SEQUENCE thingful_users_id_seq minvalue 0 START WITH 1`),
+//         trx.raw(`ALTER SEQUENCE thingful_reviews_id_seq minvalue 0 START WITH 1`),
+//         trx.raw(`SELECT setval('thingful_things_id_seq', 0)`),
+//         trx.raw(`SELECT setval('thingful_users_id_seq', 0)`),
+//         trx.raw(`SELECT setval('thingful_reviews_id_seq', 0)`),
+//       ])
+//     )
+//   )
+// }
+
+function seedUsers(db, users){ 
+  const preppedUsers = users.map(user => ({
+    ...user,
+    password: bcrypt.hashSync(user.password, 1)
+  }))
+  return db.into('thingful_users').insert(preppedUsers)
     .then(() =>
-      db
-        .into('thingful_things')
-        .insert(things)
-    )
-    .then(() =>
-      reviews.length && db.into('thingful_reviews').insert(reviews)
+    //update the auto sequence to stay in sync
+      db.raw(
+        `SELECT setval('thingful_users_id_seq', ?)`,
+        [users[users.length-1].id],
+      )
     )
 }
 
+function seedThingsTables(db, users, things, reviews=[]) {
+  return db.transaction(async trx => {
+    await seedUsers(trx, users)
+    await trx.into('thingful_things').insert(things)
+    await trx.raw(
+      `SELECT setval('thingful_things_id_seq', ?)`,
+      [things[things.length-1].id],
+    )
+    await trx.into('thingful_reviews').insert(reviews)
+    await trx.raw(
+      `SELECT setval('thingful_reviews_id_seq', ?)`,
+      [reviews[reviews.length-1].id],
+    )
+  })
+}
+
 function seedMaliciousThing(db, user, thing) {
-  return db
-    .into('thingful_users')
-    .insert([user])
+  return seedUsers(db, [user])
     .then(() =>
       db
         .into('thingful_things')
         .insert([thing])
     )
 }
-function makeAuthHeader(user){
-  const token = Buffer.from(`${user.user_name}:${user.password}`).toString('base64')
-  return `Basic ${token}`
+
+function makeAuthHeader(user, secret = process.env.JWT_SECRET){
+  const token = jwt.sign({ user_id: user.id}, secret, {
+    subject: user.user_name,
+    algorithm: 'HS256'
+  })
+  return `Bearer ${token}`
 }
 
 module.exports = {
@@ -272,4 +316,5 @@ module.exports = {
   seedThingsTables,
   seedMaliciousThing,
   makeAuthHeader,
+  seedUsers
 }

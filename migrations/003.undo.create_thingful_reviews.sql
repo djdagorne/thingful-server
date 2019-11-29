@@ -1,1 +1,1 @@
-DROP TABLE IF EXISTS thingful_comments;
+DROP TABLE IF EXISTS thingful_reviews;
