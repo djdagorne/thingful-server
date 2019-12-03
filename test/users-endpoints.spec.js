@@ -21,7 +21,9 @@ describe(`Users Endpoints`,function() {
 
     before(`cleanup`,()=> helpers.cleanTables(db))
 
-    afterEach(`cleanup`,()=> helpers.cleanTables(db))
+    afterEach(`cleanup`,()=> {
+        helpers.cleanTables(db)
+    })
 
     describe(`POST /api/users`,()=>{
         context(`User Validation`,()=>{
@@ -119,7 +121,7 @@ describe(`Users Endpoints`,function() {
             })
             it(`responds 400 'User name already taken' when user_name is not unique`,()=>{
                 const duplicatedUserName = {
-                    user_name: 'test-user-1', //this one causes an unhandled rejection error, and if moved anywhere else in the test causes its personal test to fail
+                    user_name: 'test-user-1', 
                     password: 'AA11aa!!',
                     full_name: 'montgomery'
                 }
